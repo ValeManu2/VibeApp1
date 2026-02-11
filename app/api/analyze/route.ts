@@ -1,70 +1,61 @@
 import { NextResponse } from 'next/server';
 
 export async function POST(req: Request) {
-  // 1. Leggiamo il JSON una sola volta all'inizio
-  const body = await req.json();
-  const userText = body.text || "";
-  const input = userText.toLowerCase();
-  const apiKey = process.env.HUGGINGFACE_API_KEY;
-
   try {
-    // 2. Tentativo con Hugging Face
+    const body = await req.json();
+    const userText = body.text || "";
+    const apiKey = process.env.HUGGINGFACE_API_KEY;
+
+    // Prompt ottimizzato per 30 canzoni e formato JSON puro
+    const promptIstruzioni = `[INST] Agisci come un DJ esperto. Analizza l'umore di: "${userText}". 
+    Genera una playlist di esattamente 30 canzoni famose e varie che corrispondano a questo mood.
+    Rispondi ESCLUSIVAMENTE in formato JSON con questa struttura:
+    {
+      "valence": 0.5,
+      "energy": 0.5,
+      "mood_summary": "descrizione del mood",
+      "tracks": [{"title": "Titolo Canzone", "artist": "Nome Artista"}]
+    }
+    Non aggiungere chiacchiere, solo il JSON. [/INST]`;
+
     const aiResponse = await fetch(
       "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2",
       {
-        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        headers: { 
+          Authorization: `Bearer ${apiKey}`, 
+          "Content-Type": "application/json" 
+        },
         method: "POST",
         body: JSON.stringify({
-          inputs: `[INST] Analizza: "${userText}". Rispondi SOLO JSON: {"valence":0.5,"energy":0.5,"mood_summary":"vibe","tracks":[{"title":"T","artist":"A"}]} [/INST]`,
+          inputs: promptIstruzioni,
+          parameters: { max_new_tokens: 3000, temperature: 0.7 }
         }),
       }
     );
 
     const result = await aiResponse.json();
-    const generatedText = result[0].generated_text.split('[/INST]')[1].trim();
-    return NextResponse.json(JSON.parse(generatedText));
+    
+    // Estraiamo il JSON dalla risposta dell'IA
+    let generatedText = result[0].generated_text.split('[/INST]')[1].trim();
+    const data = JSON.parse(generatedText);
+
+    // Trasformiamo ogni traccia aggiungendo il link di ricerca YouTube
+    data.tracks = data.tracks.map((t: any) => ({
+      ...t,
+      link: `https://www.youtube.com/results?search_query=${encodeURIComponent(t.title + " " + t.artist)}`
+    }));
+
+    return NextResponse.json(data);
 
   } catch (error) {
-    // 3. PIANO B: Ora l'input è già disponibile, non crasha più!
-    console.log("Utilizzo logica di riserva per evitare errori tecnici");
-
-    let fallback = {
-      valence: 0.5, 
-      energy: 0.5, 
-      mood_summary: "Analisi locale completata",
+    console.error("Errore Generazione:", error);
+    // Fallback dinamico in caso di errore API
+    return NextResponse.json({
+      mood_summary: "Playlist di emergenza (L'IA è occupata)",
       tracks: [
-        {title: "Starboy", artist: "The Weeknd"}, 
-        {title: "Nightcall", artist: "Kavinsky"},
-        {title: "After Hours", artist: "The Weeknd"},
-        {title: "Midnight City", artist: "M83"},
-        {title: "Blinding Lights", artist: "The Weeknd"}
+        { title: "Starboy", artist: "The Weeknd", link: "https://www.youtube.com/results?search_query=Starboy+The+Weeknd" },
+        { title: "Blinding Lights", artist: "The Weeknd", link: "https://www.youtube.com/results?search_query=Blinding+Lights+The+Weeknd" }
       ]
-    };
-
-    if (input.includes("calcio") || input.includes("partita") || input.includes("vincere")) {
-      fallback = { 
-        valence: 0.8, energy: 0.95, mood_summary: "Carica agonistica attivata!",
-        tracks: [
-          {title: "Sahara", artist: "Hensonn"}, 
-          {title: "Disaster", artist: "KSLV Noh"},
-          {title: "Thunderstruck", artist: "AC/DC"},
-          {title: "Live Is Life", artist: "Opus"},
-          {title: "Seven Nation Army", artist: "The White Stripes"}
-        ]
-      };
-    } else if (input.includes("respirare") || input.includes("relax") || input.includes("ansia")) {
-      fallback = { 
-        valence: 0.4, energy: 0.2, mood_summary: "Pausa rigenerante",
-        tracks: [
-          {title: "Dum Surfer", artist: "King Krule"}, 
-          {title: "Borderline", artist: "Tame Impala"},
-          {title: "Weightless", artist: "Marconi Union"},
-          {title: "Blue Train", artist: "John Coltrane"},
-          {title: "Alone Again", artist: "King Krule"}
-        ]
-      };
-    }
-
-    return NextResponse.json(fallback);
+    });
   }
 }

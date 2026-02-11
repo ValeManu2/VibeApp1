@@ -6,17 +6,17 @@ export async function POST(req: Request) {
     const userText = body.text || "";
     const apiKey = process.env.HUGGINGFACE_API_KEY;
 
-    // Usiamo Llama-3-8B: molto più veloce per evitare i timeout di Vercel
-    const prompt = `<|begin_of_text|><|start_header_id|>user<|end_header_id|>Mood: "${userText}". Generate 15 songs. Output ONLY JSON: {"mood_summary":"...","tracks":[{"title":"Song","artist":"Artist"}]}<|eot_id|><|start_header_id|>assistant<|end_header_id|>`;
+    // Usiamo Mistral-Nemo, è molto più rapido per risposte brevi JSON
+    const prompt = `[INST] Mood: ${userText}. Give 15 songs. ONLY JSON: {"mood_summary":"...","tracks":[{"title":"...","artist":"..."}]} [/INST]`;
 
     const response = await fetch(
-      "https://api-inference.huggingface.co/models/meta-llama/Meta-Llama-3-8B-Instruct",
+      "https://api-inference.huggingface.co/models/mistralai/Mistral-Nemo-Instruct-2407",
       {
         headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
         method: "POST",
         body: JSON.stringify({
           inputs: prompt,
-          parameters: { max_new_tokens: 800, temperature: 0.6, stop: ["<|eot_id|>"] }
+          parameters: { max_new_tokens: 600, temperature: 0.5, return_full_text: false }
         }),
       }
     );
@@ -24,13 +24,12 @@ export async function POST(req: Request) {
     const result = await response.json();
     let text = Array.isArray(result) ? result[0].generated_text : result.generated_text;
     
-    // Estraiamo solo il JSON
-    const jsonMatch = text.split("<|start_header_id|>assistant<|end_header_id|>")[1]?.match(/\{[\s\S]*\}/) || text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("Format error");
-    
+    // Pulizia e parsing
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error();
     const data = JSON.parse(jsonMatch[0]);
 
-    // Costruzione link YouTube precisa
+    // Costruzione link YouTube (Fix per non finire sulla Home)
     data.tracks = data.tracks.map((t: any) => ({
       ...t,
       link: `https://www.youtube.com/results?search_query=${encodeURIComponent(t.title + " " + t.artist)}`
@@ -38,13 +37,13 @@ export async function POST(req: Request) {
 
     return NextResponse.json(data);
   } catch (error) {
-    // Se fallisce ancora, cambiamo almeno le canzoni di riserva per testare
+    // Piano B con canzoni diverse per capire se l'IA ha fallito
     return NextResponse.json({
-      mood_summary: "Playlist generata (Modalità veloce)",
+      mood_summary: "Generazione veloce attivata",
       tracks: [
-        { title: "One More Time", artist: "Daft Punk", link: "https://www.youtube.com/results?search_query=One+More+Time+Daft+Punk" },
-        { title: "Bohemian Rhapsody", artist: "Queen", link: "https://www.youtube.com/results?search_query=Bohemian+Rhapsody+Queen" },
-        { title: "Smalltown Boy", artist: "Bronski Beat", link: "https://www.youtube.com/results?search_query=Smalltown+Boy+Bronski+Beat" }
+        { title: "In the End", artist: "Linkin Park", link: "https://www.youtube.com/results?search_query=In+the+End+Linkin+Park" },
+        { title: "Lose Yourself", artist: "Eminem", link: "https://www.youtube.com/results?search_query=Lose+Yourself+Eminem" },
+        { title: "Fix You", artist: "Coldplay", link: "https://www.youtube.com/results?search_query=Fix+You+Coldplay" }
       ]
     });
   }

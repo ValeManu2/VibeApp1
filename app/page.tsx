@@ -1,81 +1,69 @@
-'use client';
+"use client";
 import { useState } from 'react';
 
-export default function Home() {
-  const [text, setText] = useState('');
+export default function VibeApp() {
+  const [text, setText] = useState("");
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
-  const analyze = async () => {
+  const generatePlaylist = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/analyze', {
+      const res = await fetch('/api/generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text }),
       });
       const data = await res.json();
       setResult(data);
     } catch (e) {
-      alert("Errore tecnico. Riprova.");
+      alert("Errore nella generazione");
     }
     setLoading(false);
   };
 
   return (
-    <main className="min-h-screen bg-[#fdfcf0] text-stone-800 flex flex-col items-center p-8 font-serif">
-      <div className="max-w-xl w-full mt-20">
-        {!result ? (
-          <div className="text-center space-y-8">
-            <h1 className="text-5xl font-light">Cosa senti?</h1>
-            <textarea
-              className="w-full bg-transparent border-b border-stone-200 py-4 outline-none text-2xl text-center resize-none"
-              placeholder="scrivi una frase..."
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-            />
-            <button
-              onClick={analyze}
-              className="px-8 py-3 rounded-full border border-stone-800 hover:bg-stone-800 hover:text-white transition-all text-xs uppercase tracking-widest"
-            >
-              {loading ? 'ANALISI IN CORSO...' : 'CREA PLAYLIST'}
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-10 animate-in fade-in slide-in-from-bottom-5">
-            <div className="text-center">
-              <h2 className="text-2xl italic mb-6">"{result.mood_summary}"</h2>
-              <div className="flex justify-around border-y border-stone-200 py-6">
-                <div>
-                  <p className="text-4xl font-light">{Math.round(result.energy * 100)}%</p>
-                  <p className="text-[10px] uppercase text-stone-400">Energia</p>
-                </div>
-                <div>
-                  <p className="text-4xl font-light">{Math.round(result.valence * 100)}%</p>
-                  <p className="text-[10px] uppercase text-stone-400">Positività</p>
-                </div>
-              </div>
-            </div>
+    <main className="min-h-screen p-8 bg-gray-900 text-white font-sans">
+      <div className="max-w-2xl mx-auto">
+        <h1 className="text-4xl font-bold mb-4 text-center">Vibe Playlist 🎵</h1>
+        <p className="text-gray-400 text-center mb-8">Scrivi come ti senti e ti darò 30 canzoni ad hoc.</p>
 
-            <div className="space-y-4">
-              <p className="text-[10px] uppercase tracking-[0.3em] text-center text-stone-400">Selezione Brani</p>
-              {result.tracks?.map((t: any, i: number) => (
-                <div key={i} className="flex justify-between items-center p-4 bg-white/50 rounded-2xl border border-stone-100 hover:shadow-md transition-all">
+        <div className="flex gap-2 mb-8">
+          <input 
+            className="flex-1 p-3 rounded-lg bg-gray-800 border border-gray-700 focus:outline-none focus:border-blue-500"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Esempio: Una carica per vincere la partita di calcio..."
+          />
+          <button 
+            onClick={generatePlaylist}
+            disabled={loading}
+            className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-bold transition disabled:opacity-50"
+          >
+            {loading ? "Generazione..." : "Genera"}
+          </button>
+        </div>
+
+        {result && (
+          <div className="bg-gray-800 rounded-xl p-6 shadow-xl">
+            <h2 className="text-2xl font-semibold mb-2">{result.mood_summary}</h2>
+            <div className="space-y-3 mt-6">
+              {result.tracks.map((track: any, i: number) => (
+                <div key={i} className="flex justify-between items-center p-3 bg-gray-700 rounded-lg hover:bg-gray-600 transition">
                   <div>
-                    <h3 className="font-medium text-lg">{t.title}</h3>
-                    <p className="text-sm text-stone-500">{t.artist}</p>
+                    <p className="font-medium">{i + 1}. {track.title}</p>
+                    <p className="text-sm text-gray-400">{track.artist}</p>
                   </div>
                   <a 
-                    href={`https://www.youtube.com/results?search_query=${encodeURIComponent(t.title + ' ' + t.artist)}`}
+                    href={track.link} 
                     target="_blank" 
-                    className="text-xl opacity-30 hover:opacity-100 transition-opacity"
+                    rel="noopener noreferrer"
+                    className="bg-red-600 hover:bg-red-700 text-white text-xs px-4 py-2 rounded-full font-bold uppercase tracking-wider"
                   >
-                    ▶
+                    Ascolta
                   </a>
                 </div>
               ))}
             </div>
-            <button onClick={() => setResult(null)} className="w-full text-[10px] uppercase tracking-widest text-stone-300 py-10">Ricomincia</button>
           </div>
         )}
       </div>

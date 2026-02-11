@@ -8,8 +8,8 @@ export default function VibeApp() {
 
   const generatePlaylist = async () => {
     setLoading(true);
+    setResult(null);
     try {
-      // PUNTA ALLA TUA CARTELLA ANALYZE
       const res = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -18,56 +18,66 @@ export default function VibeApp() {
       const data = await res.json();
       setResult(data);
     } catch (e) {
-      console.error(e);
-      alert("Errore nella generazione");
+      alert("Errore di connessione");
     }
     setLoading(false);
   };
 
   return (
-    <main className="min-h-screen bg-black text-white font-sans selection:bg-white/20">
-      <div className="max-w-xl mx-auto px-6 py-20">
-        <header className="mb-12">
-          <h1 className="text-2xl font-light tracking-tighter mb-2 italic">VIBE.</h1>
-          <p className="text-gray-500 text-xs uppercase tracking-widest">30 Custom Tracks for your mood</p>
-        </header>
-
-        <div className="space-y-4 mb-16">
-          <input 
-            className="w-full bg-transparent border-b border-gray-800 p-2 text-lg focus:outline-none focus:border-white transition-colors placeholder:text-gray-700"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Descrivi il tuo mood..."
-          />
-          <button 
-            onClick={generatePlaylist}
-            disabled={loading || !text}
-            className="text-[10px] uppercase tracking-[0.2em] border border-gray-700 px-6 py-2 hover:bg-white hover:text-black transition-all disabled:opacity-30"
-          >
-            {loading ? "Analizzando..." : "Genera Playlist"}
-          </button>
+    // Colore Bianco Panna Sporco (faf9f6)
+    <main className="min-h-screen bg-[#faf9f6] text-[#1a1a1a] font-serif">
+      <div className="max-w-xl mx-auto px-6 min-h-screen flex flex-col justify-center">
+        
+        {/* Titolo Minimal in alto */}
+        <div className="absolute top-10 left-10">
+          <h1 className="text-xl tracking-tighter opacity-30">VIBE.</h1>
         </div>
 
-        {result && (
-          <div className="animate-in fade-in duration-700">
-            <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-10 border-l border-gray-800 pl-4">
-              {result.mood_summary}
+        {/* Centro Pagina */}
+        <div className="space-y-12">
+          <div className="space-y-4">
+            <h2 className="text-4xl font-light tracking-tight text-center">Come stai?</h2>
+            <input 
+              className="w-full bg-transparent border-b border-black/10 p-4 text-2xl text-center focus:outline-none focus:border-black transition-colors placeholder:text-gray-300"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="..."
+              onKeyDown={(e) => e.key === 'Enter' && generatePlaylist()}
+            />
+          </div>
+
+          <div className="flex justify-center">
+            <button 
+              onClick={generatePlaylist}
+              disabled={loading || !text}
+              className="text-[10px] uppercase tracking-[0.3em] border border-black/20 px-10 py-3 hover:bg-black hover:text-white transition-all disabled:opacity-20"
+            >
+              {loading ? "Analisi..." : "Scopri la tua musica"}
+            </button>
+          </div>
+        </div>
+
+        {/* Risultati (appaiono sotto quando pronti) */}
+        {result && result.tracks && (
+          <div className="mt-20 animate-in fade-in slide-in-from-bottom-8 duration-1000">
+            <p className="text-[10px] text-gray-400 uppercase tracking-widest mb-10 text-center italic">
+              — {result.mood_summary} —
             </p>
-            <div className="space-y-4">
-              {result.tracks?.map((track: any, i: number) => (
-                <div key={i} className="group flex justify-between items-center border-b border-gray-900/50 pb-3 hover:border-gray-700 transition-colors">
-                  <div className="flex items-center gap-4">
-                    <span className="text-[9px] text-gray-700">{String(i + 1).padStart(2, '0')}</span>
+            <div className="space-y-8 mb-20">
+              {result.tracks.map((track: any, i: number) => (
+                <div key={i} className="flex justify-between items-end border-b border-black/5 pb-4 group">
+                  <div className="flex gap-6 items-baseline">
+                    <span className="text-[9px] opacity-20">{i + 1}</span>
                     <div>
-                      <h3 className="text-sm font-light text-gray-300 group-hover:text-white">{track.title}</h3>
-                      <p className="text-[10px] text-gray-600 uppercase">{track.artist}</p>
+                      <h3 className="text-lg font-light group-hover:italic transition-all">{track.title}</h3>
+                      <p className="text-[10px] uppercase tracking-tighter opacity-50">{track.artist}</p>
                     </div>
                   </div>
                   <a 
                     href={track.link} 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="text-[9px] uppercase tracking-widest text-gray-600 hover:text-white border border-gray-800 px-2 py-1 rounded-sm transition-all"
+                    className="text-[9px] uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity underline decoration-1 underline-offset-4"
                   >
                     Play
                   </a>

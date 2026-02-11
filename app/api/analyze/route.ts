@@ -6,41 +6,37 @@ export async function POST(req: Request) {
     const userText = body.text || "";
     const apiKey = process.env.HUGGINGFACE_API_KEY;
 
-    // Prompt ottimizzato per 30 canzoni e formato JSON puro
-    const promptIstruzioni = `[INST] Agisci come un DJ esperto. Analizza l'umore di: "${userText}". 
-    Genera una playlist di esattamente 15 canzoni famose e varie che corrispondano a questo mood.
-    Rispondi ESCLUSIVAMENTE in formato JSON con questa struttura:
-    {
-      "valence": 0.5,
-      "energy": 0.5,
-      "mood_summary": "descrizione del mood",
-      "tracks": [{"title": "Titolo Canzone", "artist": "Nome Artista"}]
+    if (!apiKey) {
+        return NextResponse.json({ mood_summary: "Errore: Chiave API mancante su Vercel", tracks: [] }, { status: 500 });
     }
-    Non aggiungere chiacchiere, solo il JSON. [/INST]`;
+
+    const promptIstruzioni = `[INST] Analizza il mood: "${userText}". Genera una playlist di 15 canzoni. Rispondi SOLO con un oggetto JSON valido. Struttura: {"mood_summary": "string", "tracks": [{"title": "string", "artist": "string"}]}. Non aggiungere altro testo. [/INST]`;
 
     const aiResponse = await fetch(
       "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2",
       {
-        headers: { 
-          Authorization: `Bearer ${apiKey}`, 
-          "Content-Type": "application/json" 
-        },
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
         method: "POST",
         body: JSON.stringify({
           inputs: promptIstruzioni,
-          parameters: { max_new_tokens: 3000, temperature: 0.7 }
+          parameters: { max_new_tokens: 1500, temperature: 0.7, return_full_text: false }
         }),
       }
     );
 
     const result = await aiResponse.json();
     
-    // Estraiamo il JSON dalla risposta dell'IA
-    let generatedText = result[0].generated_text.split('[/INST]')[1].trim();
-    const data = JSON.parse(generatedText);
+    // Gestione risposta Hugging Face (a volte è un array, a volte un oggetto)
+    let generatedText = Array.isArray(result) ? result[0].generated_text : result.generated_text;
+    
+    // Pulizia: estraiamo solo quello che sta tra le parentesi graffe { }
+    const jsonMatch = generatedText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("L'IA non ha restituito un JSON valido");
+    
+    const data = JSON.parse(jsonMatch[0]);
 
-    // Trasformiamo ogni traccia aggiungendo il link di ricerca YouTube
-    data.tracks = data.tracks.map((t: any) => ({
+    // Aggiunta link YouTube
+    data.tracks = (data.tracks || []).map((t: any) => ({
       ...t,
       link: `https://www.youtube.com/results?search_query=${encodeURIComponent(t.title + " " + t.artist)}`
     }));
@@ -48,15 +44,13 @@ export async function POST(req: Request) {
     return NextResponse.json(data);
 
   } catch (error) {
-    console.error("Errore Generazione:", error);
-    // Fallback dinamico in caso di errore API
+    console.error("Errore dettagliato:", error);
     return NextResponse.json({
-      mood_summary: "Playlist di emergenza (L'IA è occupata)",
+      mood_summary: "Servizio momentaneamente occupato. Riprova tra un istante.",
       tracks: [
         { title: "Starboy", artist: "The Weeknd", link: "https://www.youtube.com/results?search_query=Starboy+The+Weeknd" },
-        { title: "Blinding Lights", artist: "The Weeknd", link: "https://www.youtube.com/results?search_query=Blinding+Lights+The+Weeknd" }
+        { title: "Nightcall", artist: "Kavinsky", link: "https://www.youtube.com/results?search_query=Nightcall+Kavinsky" }
       ]
     });
   }
 }
-

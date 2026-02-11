@@ -8,7 +8,7 @@ export async function POST(req: Request) {
 
     // Prompt ottimizzato per 30 canzoni e formato JSON puro
     const promptIstruzioni = `[INST] Agisci come un DJ esperto. Analizza l'umore di: "${userText}". 
-    Genera una playlist di esattamente 30 canzoni famose e varie che corrispondano a questo mood.
+    Genera una playlist di esattamente 15 canzoni famose e varie che corrispondano a questo mood.
     Rispondi ESCLUSIVAMENTE in formato JSON con questa struttura:
     {
       "valence": 0.5,
@@ -59,3 +59,4 @@ export async function POST(req: Request) {
     });
   }
 }
+

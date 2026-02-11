@@ -6,9 +6,9 @@ export default function VibeApp() {
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
-  const generatePlaylist = async () => {
+  const generateVibe = async () => {
     setLoading(true);
-    setResult(null);
+    setResult(null); // Pulisce i risultati precedenti
     try {
       const res = await fetch('/api/analyze', {
         method: 'POST',
@@ -18,7 +18,8 @@ export default function VibeApp() {
       const data = await res.json();
       setResult(data);
     } catch (e) {
-      alert("Errore");
+      alert("Errore di connessione con l'AI. Riprova!");
+      console.error(e);
     }
     setLoading(false);
   };
@@ -46,14 +47,14 @@ export default function VibeApp() {
                 className="w-full bg-transparent border-b border-black/10 p-4 text-2xl text-center focus:outline-none focus:border-black transition-all placeholder:text-gray-200"
                 value={text}
                 onChange={(e) => setText(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && generatePlaylist()}
+                onKeyDown={(e) => e.key === 'Enter' && generateVibe()}
                 placeholder="..."
                 autoFocus
               />
             </div>
             <div className="flex justify-center">
               <button 
-                onClick={generatePlaylist}
+                onClick={generateVibe}
                 disabled={loading || !text}
                 className="text-[10px] uppercase tracking-[0.4em] border border-black/20 px-12 py-4 hover:bg-black hover:text-white transition-all disabled:opacity-20"
               >
@@ -63,7 +64,7 @@ export default function VibeApp() {
           </div>
         )}
 
-        {/* Stato Risultati: Playlist */}
+        {/* Stato Risultati: Playlist & Film/Serie TV */}
         {result && (
           <div className="pb-20 pt-10 animate-in fade-in slide-in-from-bottom-8 duration-1000">
             <div className="flex justify-between items-center mb-16">
@@ -74,33 +75,64 @@ export default function VibeApp() {
                 onClick={reset}
                 className="text-[9px] uppercase tracking-widest border-b border-black/20 hover:border-black transition-all pb-1"
               >
-                ← Indietro
+                ← Nuova Ricerca
               </button>
             </div>
 
-            <div className="space-y-8">
-              {result.tracks?.map((track: any, i: number) => (
-                <div key={i} className="flex justify-between items-center border-b border-black/5 pb-4 group">
-                  <div className="pr-4">
-                    <h3 className="text-lg font-light leading-tight group-hover:italic transition-all">{track.title}</h3>
-                    <p className="text-[10px] uppercase opacity-40 tracking-tighter">{track.artist}</p>
-                  </div>
-                  <a 
-                    href={track.link} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-[9px] font-bold uppercase tracking-widest border border-black px-4 py-2 hover:bg-black hover:text-[#faf9f6] transition-all"
-                  >
-                    Play
-                  </a>
+            {/* Sezione Musica */}
+            {result.music_tracks && result.music_tracks.length > 0 && (
+              <div className="mb-16">
+                <h3 className="text-xs uppercase tracking-widest opacity-50 mb-6 border-b pb-2">Musica</h3>
+                <div className="space-y-8">
+                  {result.music_tracks.map((track: any, i: number) => (
+                    <div key={i} className="flex justify-between items-center border-b border-black/5 pb-4 group">
+                      <div className="pr-4">
+                        <h4 className="text-lg font-light leading-tight group-hover:italic transition-all">{track.title}</h4>
+                        <p className="text-[10px] uppercase opacity-40 tracking-tighter">{track.artist}</p>
+                      </div>
+                      <a 
+                        href={track.link} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-[9px] font-bold uppercase tracking-widest border border-black px-4 py-2 hover:bg-black hover:text-[#faf9f6] transition-all"
+                      >
+                        Play
+                      </a>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
+
+            {/* Sezione Film & Serie TV */}
+            {result.movies_tv_shows && result.movies_tv_shows.length > 0 && (
+              <div>
+                <h3 className="text-xs uppercase tracking-widest opacity-50 mb-6 border-b pb-2">Film & Serie TV</h3>
+                <div className="space-y-8">
+                  {result.movies_tv_shows.map((item: any, i: number) => (
+                    <div key={i} className="flex justify-between items-center border-b border-black/5 pb-4 group">
+                      <div className="pr-4">
+                        <h4 className="text-lg font-light leading-tight group-hover:italic transition-all">{item.title}</h4>
+                        <p className="text-[10px] uppercase opacity-40 tracking-tighter">{item.type}</p>
+                      </div>
+                      <a 
+                        href={item.link} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-[9px] font-bold uppercase tracking-widest border border-black px-4 py-2 hover:bg-black hover:text-[#faf9f6] transition-all"
+                      >
+                        Info
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
         <div className="mt-auto py-8 text-center opacity-10 text-[8px] uppercase tracking-[0.5em]">
-          Ai Music Selection
+          AI Vibe Curator
         </div>
       </div>
     </main>

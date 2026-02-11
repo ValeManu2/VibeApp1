@@ -10,7 +10,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ mood_summary: "Configurazione mancante", tracks: [] }, { status: 500 });
     }
 
-    const prompt = `[INST] Mood: "${userText}". Genera playlist di 30 canzoni. Rispondi SOLO JSON: {"mood_summary":"...","tracks":[{"title":"...","artist":"..."}]} [/INST]`;
+    const prompt = `[INST] Mood: "${userText}". Genera playlist di 15 canzoni. Rispondi SOLO JSON: {"mood_summary":"...","tracks":[{"title":"...","artist":"..."}]} [/INST]`;
 
     const response = await fetch(
       "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2",
@@ -46,3 +46,4 @@ export async function POST(req: Request) {
     });
   }
 }
+

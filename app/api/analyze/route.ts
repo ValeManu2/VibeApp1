@@ -7,11 +7,12 @@ export async function POST(req: Request) {
     userText = body.text || "";
     const apiKey = process.env.HUGGINGFACE_API_KEY;
 
-    // Prompt raffinato: chiediamo all'IA di attingere dai database reali
+    // Prompt focalizzato sull'analisi semantica e la pertinenza reale
     const prompt = `[INST] Mood: "${userText}". 
-    Act as a curator for Apple Music and Letterboxd. 
-    Select 5 real songs and 3 real movies/series that fit this vibe perfectly.
-    Output ONLY JSON: {"tracks":[{"t":"Song Title","a":"Artist"}],"media":[{"t":"Movie Title","y":"Movie/Series"}]} [/INST]`;
+    1. Analyze the sentence to find the deepest emotional meaning.
+    2. Identify 5 songs (Apple Music style) and 3 movies/series (Letterboxd style) that match this specific vibe.
+    3. Use real, existing titles only.
+    Output ONLY JSON: {"mood_summary":"detailed analysis","music_tracks":[{"title":"...","artist":"..."}],"movies_tv_shows":[{"title":"...","type":"..."}]} [/INST]`;
 
     const response = await fetch(
       "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2",
@@ -20,52 +21,28 @@ export async function POST(req: Request) {
         method: "POST",
         body: JSON.stringify({
           inputs: prompt,
-          parameters: { max_new_tokens: 500, wait_for_model: true }
+          parameters: { max_new_tokens: 600, temperature: 0.7, wait_for_model: true }
         }),
       }
     );
 
     const result = await response.json();
-    let music = [];
-    let cinema = [];
-
+    
     if (response.ok && !result.error) {
       const text = Array.isArray(result) ? result[0].generated_text : result.generated_text;
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        music = parsed.tracks || [];
-        cinema = parsed.media || [];
+        const data = JSON.parse(jsonMatch[0]);
+        return NextResponse.json(data);
       }
     }
-
-    // Se l'IA fallisce, usiamo direttamente il mood come termine di ricerca PULITO
-    if (music.length === 0) music = [{ t: userText, a: "" }];
-    if (cinema.length === 0) cinema = [{ t: userText, y: "" }];
-
-    return NextResponse.json(generateLinks(music, cinema, userText));
+    throw new Error("Analisi fallita");
 
   } catch (e) {
-    return NextResponse.json(generateLinks([{ t: userText, a: "" }], [{ t: userText, y: "" }], userText));
+    return NextResponse.json({
+      mood_summary: "Analisi testuale semplice",
+      music_tracks: [{ title: userText, artist: "Keyword Search" }],
+      movies_tv_shows: [{ title: userText, type: "Keyword Search" }]
+    });
   }
-}
-
-function generateLinks(music: any[], cinema: any[], query: string) {
-  return {
-    mood_summary: `Vibe: ${query}`,
-    music_tracks: music.map((t: any) => ({
-      title: t.t,
-      artist: t.a,
-      // FIX: Ricerca pulita senza parole aggiuntive che rompono i risultati
-      apple: `https://music.apple.com/search?term=${encodeURIComponent(t.t + " " + t.a)}`,
-      amazon: `https://music.amazon.it/search/${encodeURIComponent(t.t + " " + t.a)}`
-    })),
-    movies_tv_shows: cinema.map((m: any) => ({
-      title: m.t,
-      type: m.y,
-      // FIX: Ricerca diretta su Letterboxd
-      letterboxd: `https://letterboxd.com/search/${encodeURIComponent(m.t)}/`,
-      tomatoes: `https://www.rottentomatoes.com/search?search=${encodeURIComponent(m.t)}`
-    }))
-  };
 }

@@ -7,12 +7,11 @@ export async function POST(req: Request) {
     userText = body.text || "";
     const apiKey = process.env.HUGGINGFACE_API_KEY;
 
-    // Prompt focalizzato sull'analisi semantica e la pertinenza reale
+    // Prompt potenziato: chiediamo all'IA di fare il lavoro di "scouting"
     const prompt = `[INST] Mood: "${userText}". 
-    1. Analyze the sentence to find the deepest emotional meaning.
-    2. Identify 5 songs (Apple Music style) and 3 movies/series (Letterboxd style) that match this specific vibe.
-    3. Use real, existing titles only.
-    Output ONLY JSON: {"mood_summary":"detailed analysis","music_tracks":[{"title":"...","artist":"..."}],"movies_tv_shows":[{"title":"...","type":"..."}]} [/INST]`;
+    Extract the 5 most relevant REAL songs from Apple Music and 3 REAL movies from Letterboxd.
+    Do NOT repeat the user sentence. Use only actual titles.
+    Output ONLY JSON: {"tracks":[{"t":"Song Title","a":"Artist"}],"media":[{"t":"Movie Title","y":"Movie"}]} [/INST]`;
 
     const response = await fetch(
       "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2",
@@ -21,7 +20,7 @@ export async function POST(req: Request) {
         method: "POST",
         body: JSON.stringify({
           inputs: prompt,
-          parameters: { max_new_tokens: 600, temperature: 0.7, wait_for_model: true }
+          parameters: { max_new_tokens: 400, wait_for_model: true }
         }),
       }
     );
@@ -32,17 +31,25 @@ export async function POST(req: Request) {
       const text = Array.isArray(result) ? result[0].generated_text : result.generated_text;
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        const data = JSON.parse(jsonMatch[0]);
-        return NextResponse.json(data);
+        const parsed = JSON.parse(jsonMatch[0]);
+        // Restituiamo solo i titoli puliti
+        return NextResponse.json({
+          mood_summary: "Analisi Vibe",
+          music_tracks: parsed.tracks.map((t: any) => ({ title: t.t, artist: t.a })),
+          movies_tv_shows: parsed.media.map((m: any) => ({ title: m.t, type: m.y }))
+        });
       }
     }
-    throw new Error("Analisi fallita");
+    throw new Error("Timeout");
 
   } catch (e) {
+    // FALLBACK INTELLIGENTE: Se l'IA fallisce, non usiamo la frase intera!
+    // Prendiamo solo le parole più importanti (es. "motivazione", "calcio")
+    const keywords = userText.split(' ').filter(word => word.length > 5).slice(0, 2).join(' ');
     return NextResponse.json({
-      mood_summary: "Analisi testuale semplice",
-      music_tracks: [{ title: userText, artist: "Keyword Search" }],
-      movies_tv_shows: [{ title: userText, type: "Keyword Search" }]
+      mood_summary: "Ricerca per concetti chiave",
+      music_tracks: [{ title: keywords || userText, artist: "Scelta suggerita" }],
+      movies_tv_shows: [{ title: keywords || userText, type: "Film correlato" }]
     });
   }
 }

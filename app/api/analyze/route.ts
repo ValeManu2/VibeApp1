@@ -6,7 +6,7 @@ export async function POST(req: Request) {
     const userText = body.text || "";
     const apiKey = process.env.GEMINI_API_KEY;
 
-    if (!apiKey) return NextResponse.json({ error: "Manca GEMINI_API_KEY su Vercel" }, { status: 500 });
+    if (!apiKey) return NextResponse.json({ error: "Chiave API non configurata su Vercel" }, { status: 500 });
 
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
@@ -14,33 +14,28 @@ export async function POST(req: Request) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: `Analizza questa frase: "${userText}". 
-              Dimentica i risultati precedenti. Interpreta il senso profondo e fornisci:
-              1. 5 Canzoni reali e diverse (stile Apple Music).
-              2. 2 Film reali e diversi (stile Letterboxd).
-              3. 1 Serie TV reale.
-              
-              Rispondi SOLO in JSON con questo schema preciso:
-              {"summary":"...","songs":[{"t":"Titolo","a":"Artista"}],"movies":[{"t":"Titolo"}],"series":[{"t":"Titolo"}]}`
-            }]
-          }],
-          generationConfig: { temperature: 1.0 } 
+          contents: [{ parts: [{ text: `Analizza il mood: "${userText}". Fornisci 5 canzoni, 2 film, 1 serie tv. Rispondi solo in JSON: {"summary":"...","songs":[{"t":"...","a":"..."}],"movies":[{"t":"..."}],"series":[{"t":"..."}]}` }] }],
+          generationConfig: { temperature: 0.8 }
         }),
       }
     );
 
     const result = await response.json();
+
+    // Se Google risponde con un errore (es. Location non supportata)
+    if (result.error) {
+      console.error("Errore Google:", result.error.message);
+      return NextResponse.json({ error: `IA Error: ${result.error.message}` }, { status: 500 });
+    }
+
     const rawText = result.candidates[0].content.parts[0].text;
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("Format error");
     
-    if (!jsonMatch) throw new Error("Formato IA non valido");
-    const data = JSON.parse(jsonMatch[0]);
-
-    return NextResponse.json(data);
+    return NextResponse.json(JSON.parse(jsonMatch[0]));
 
   } catch (error) {
-    return NextResponse.json({ error: "Errore durante l'analisi" }, { status: 500 });
+    console.error("Errore Generale:", error);
+    return NextResponse.json({ error: "Connessione fallita. Riprova." }, { status: 500 });
   }
 }

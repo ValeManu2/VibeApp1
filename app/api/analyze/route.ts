@@ -6,56 +6,43 @@ export async function POST(req: Request) {
     const userText = body.text || "";
     const apiKey = process.env.HUGGINGFACE_API_KEY;
 
-    // Prompt super strutturato per evitare errori
-    const prompt = `<start_of_turn>user
-    Mood dell'utente: "${userText}".
-    Trova 5 canzoni e 3 film/serie TV che abbiano ESATTAMENTE questa atmosfera. 
-    Rispondi SOLO con un oggetto JSON:
-    {
-      "mood_summary": "descrizione breve",
-      "music_tracks": [{"title": "titolo", "artist": "artista"}],
-      "movies_tv_shows": [{"title": "titolo", "type": "Film o Serie TV"}]
-    }<start_of_turn>model`;
+    const prompt = `[INST] Mood: "${userText}". 
+    1. Extract 5 specific songs (Title - Artist).
+    2. Extract 3 movies/series.
+    Output ONLY JSON: {"mood_summary":"...","music_tracks":[{"title":"...","artist":"..."}],"movies_tv_shows":[{"title":"...","type":"..."}]} [/INST]`;
 
     const response = await fetch(
-      "https://api-inference.huggingface.co/models/google/gemma-2-9b-it",
+      "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2",
       {
         headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
         method: "POST",
-        body: JSON.stringify({
-          inputs: prompt,
-          parameters: { max_new_tokens: 500, temperature: 0.7 }
-        }),
+        body: JSON.stringify({ inputs: prompt, parameters: { max_new_tokens: 500, wait_for_model: true } }),
       }
     );
 
     const result = await response.json();
     let text = Array.isArray(result) ? result[0].generated_text : result.generated_text;
-    
-    // Pulizia JSON per evitare che appaiano sempre le stesse canzoni
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("IA lenta");
-    const data = JSON.parse(jsonMatch[0]);
+    const data = JSON.parse(text.match(/\{[\s\S]*\}/)[0]);
 
-    // Link YouTube per musica
+    // LINK A PIATTAFORME SPECIFICHE
     data.music_tracks = data.music_tracks.map((t: any) => ({
       ...t,
-      link: `https://www.youtube.com/results?search_query=${encodeURIComponent(t.title + " " + t.artist)}`
+      // Cerca la canzone direttamente su Apple Music
+      apple_link: `https://music.apple.com/search?term=${encodeURIComponent(t.title + " " + t.artist)}`,
+      // Cerca la canzone su Amazon Music
+      amazon_link: `https://music.amazon.it/search/${encodeURIComponent(t.title + " " + t.artist)}`
     }));
 
-    // Link Google per Film/Serie
     data.movies_tv_shows = data.movies_tv_shows.map((m: any) => ({
       ...m,
-      link: `https://www.google.com/search?q=${encodeURIComponent(m.title + " " + m.type + " dove vederlo")}`
+      // Cerca il film su Letterboxd
+      letterboxd_link: `https://letterboxd.com/search/${encodeURIComponent(m.title)}/`,
+      // Cerca su Rotten Tomatoes
+      tomatoes_link: `https://www.rottentomatoes.com/search?search=${encodeURIComponent(m.title)}`
     }));
 
     return NextResponse.json(data);
   } catch (error) {
-    // Piano B più pertinente (se l'IA fallisce)
-    return NextResponse.json({
-      mood_summary: "Selezione rapida per: " + userText,
-      music_tracks: [{ title: "After Hours", artist: "The Weeknd", link: "https://www.youtube.com/results?search_query=After+Hours+The+Weeknd" }],
-      movies_tv_shows: [{ title: "Blade Runner 2049", type: "Film", link: "https://www.google.com/search?q=Blade+Runner+2049" }]
-    });
+    return NextResponse.json({ mood_summary: "Errore", music_tracks: [], movies_tv_shows: [] });
   }
 }

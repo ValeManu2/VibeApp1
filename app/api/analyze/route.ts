@@ -6,36 +6,55 @@ export async function POST(req: Request) {
     const userText = body.text || "";
     const apiKey = process.env.GEMINI_API_KEY;
 
-    if (!apiKey) return NextResponse.json({ error: "Chiave API non configurata su Vercel" }, { status: 500 });
+    if (!apiKey) return NextResponse.json({ error: "Chiave API mancante" }, { status: 500 });
 
+    // CAMBIO URL: Usiamo la versione v1 invece della v1beta
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: `Analizza il mood: "${userText}". Fornisci 5 canzoni, 2 film, 1 serie tv. Rispondi solo in JSON: {"summary":"...","songs":[{"t":"...","a":"..."}],"movies":[{"t":"..."}],"series":[{"t":"..."}]}` }] }],
-          generationConfig: { temperature: 0.8 }
+          contents: [{
+            parts: [{
+              text: `Analizza questo mood: "${userText}". 
+              Dimentica i risultati precedenti. Fornisci ESATTAMENTE:
+              - 5 Canzoni reali e diverse (Titolo e Artista).
+              - 2 Film reali e diversi.
+              - 1 Serie TV reale.
+              
+              Rispondi SOLO in JSON con questo schema:
+              {"summary":"...","songs":[{"t":"Titolo","a":"Artista"}],"movies":[{"t":"Titolo"}],"series":[{"t":"Titolo"}]}`
+            }]
+          }],
+          generationConfig: { 
+            temperature: 1.0,
+            maxOutputTokens: 1000 
+          }
         }),
       }
     );
 
     const result = await response.json();
 
-    // Se Google risponde con un errore (es. Location non supportata)
+    // Se Google restituisce un errore specifico
     if (result.error) {
-      console.error("Errore Google:", result.error.message);
-      return NextResponse.json({ error: `IA Error: ${result.error.message}` }, { status: 500 });
+      return NextResponse.json({ error: `IA Error: ${result.error.message}` }, { status: result.error.code || 500 });
+    }
+
+    if (!result.candidates || !result.candidates[0].content.parts[0].text) {
+      throw new Error("Risposta vuota dall'IA");
     }
 
     const rawText = result.candidates[0].content.parts[0].text;
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("Format error");
+    
+    if (!jsonMatch) throw new Error("Formato JSON non trovato");
     
     return NextResponse.json(JSON.parse(jsonMatch[0]));
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Errore Generale:", error);
-    return NextResponse.json({ error: "Connessione fallita. Riprova." }, { status: 500 });
+    return NextResponse.json({ error: "Errore di connessione con l'IA." }, { status: 500 });
   }
 }

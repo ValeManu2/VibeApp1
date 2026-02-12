@@ -6,7 +6,7 @@ export async function POST(req: Request) {
     const userText = body.text || "";
     const apiKey = process.env.GEMINI_API_KEY;
 
-    if (!apiKey) return NextResponse.json({ error: "Configura GEMINI_API_KEY" }, { status: 500 });
+    if (!apiKey) return NextResponse.json({ error: "Configura GEMINI_API_KEY su Vercel" }, { status: 500 });
 
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
@@ -26,18 +26,21 @@ export async function POST(req: Request) {
               {"summary":"...","songs":[{"t":"Titolo","a":"Artista"}],"movies":[{"t":"Titolo"}],"series":[{"t":"Titolo"}]}`
             }]
           }],
-          generationConfig: { temperature: 1.0 } // Massima varietà
+          generationConfig: { temperature: 1.0 } 
         }),
       }
     );
 
     const result = await response.json();
     const rawText = result.candidates[0].content.parts[0].text;
-    const data = JSON.parse(rawText.match(/\{[\s\S]*\}/)[0]);
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    
+    if (!jsonMatch) throw new Error("IA Error");
+    const data = JSON.parse(jsonMatch[0]);
 
     return NextResponse.json(data);
 
   } catch (error) {
-    return NextResponse.json({ error: "Errore di analisi" }, { status: 500 });
+    return NextResponse.json({ error: "Errore di analisi. Riprova." }, { status: 500 });
   }
 }

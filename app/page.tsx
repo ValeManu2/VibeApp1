@@ -39,30 +39,30 @@ export default function VibeApp() {
               value={text} 
               onChange={(e) => setText(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && generateVibe()} 
-              placeholder="..."
+              placeholder="Scrivi qui..."
             />
             <button 
               onClick={generateVibe} 
               disabled={loading}
               className="text-[10px] uppercase tracking-[0.4em] border border-black/20 px-12 py-4 hover:bg-black hover:text-white transition-all disabled:opacity-30"
             >
-              {loading ? "Analisi in corso..." : "Analizza Vibe"}
+              {loading ? "Analisi..." : "Scopri"}
             </button>
           </div>
         ) : (
-          <div className="pb-20 animate-in fade-in duration-1000">
-            <button onClick={() => setResult(null)} className="mb-10 text-[9px] uppercase tracking-widest border-b border-black/20 hover:opacity-50">
-              ← Nuova Frase
+          <div className="pb-20">
+            <button onClick={() => setResult(null)} className="mb-10 text-[9px] uppercase tracking-widest border-b border-black/20">
+              ← Nuova Ricerca
             </button>
             
-            <p className="text-[11px] text-gray-400 uppercase tracking-widest mb-16 text-center italic leading-relaxed">
+            <p className="text-[11px] text-gray-400 uppercase tracking-widest mb-16 text-center italic">
               — {result.summary} —
             </p>
             
             <section className="mb-12">
-              <h3 className="text-[10px] uppercase opacity-30 mb-8 border-b pb-2 italic">5 Canzoni (Apple Music)</h3>
+              <h3 className="text-[10px] uppercase opacity-30 mb-8 border-b pb-2 italic text-center">5 Canzoni</h3>
               {result.songs?.map((s: any, i: number) => (
-                <div key={i} className="mb-6">
+                <div key={i} className="mb-6 text-center">
                   <h4 className="text-xl font-light">{s.t}</h4>
                   <p className="text-[10px] opacity-40 uppercase tracking-widest">{s.a}</p>
                 </div>
@@ -70,20 +70,20 @@ export default function VibeApp() {
             </section>
 
             <section className="mb-12">
-              <h3 className="text-[10px] uppercase opacity-30 mb-8 border-b pb-2 italic">2 Film (Letterboxd)</h3>
+              <h3 className="text-[10px] uppercase opacity-30 mb-8 border-b pb-2 italic text-center">2 Film</h3>
               {result.movies?.map((m: any, i: number) => (
-                <div key={i} className="mb-6">
+                <div key={i} className="mb-6 text-center">
                   <h4 className="text-xl font-light">{m.t}</h4>
-                  <p className="text-[10px] opacity-40 uppercase tracking-widest">Film</p>
+                  <p className="text-[10px] opacity-40 uppercase tracking-widest">Cinema</p>
                 </div>
               ))}
             </section>
 
             <section>
-              <h3 className="text-[10px] uppercase opacity-30 mb-8 border-b pb-2 italic">1 Serie TV</h3>
-              <div className="mb-6">
+              <h3 className="text-[10px] uppercase opacity-30 mb-8 border-b pb-2 italic text-center">1 Serie TV</h3>
+              <div className="mb-6 text-center">
                 <h4 className="text-xl font-light">{result.series?.[0]?.t}</h4>
-                <p className="text-[10px] opacity-40 uppercase tracking-widest">Serie TV</p>
+                <p className="text-[10px] opacity-40 uppercase tracking-widest">Televisione</p>
               </div>
             </section>
           </div>

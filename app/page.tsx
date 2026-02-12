@@ -30,22 +30,13 @@ export default function VibeApp() {
 
   return (
     <main className="min-h-screen bg-[#faf9f6] text-[#1a1a1a] font-serif flex flex-col items-center px-6 transition-all duration-700">
-      <div className="w-full max-w-lg pt-16">
+      {/* pt-32 alza il contenuto per un look più bilanciato senza logo */}
+      <div className="w-full max-w-lg pt-32">
         
         {!result ? (
           <div className="space-y-12 text-center animate-in fade-in duration-1000">
-            {/* LOGO MINIMAL INTEGRATO */}
-            <div className="flex justify-center">
-              <div className="opacity-80">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M12 2a10 10 0 0 1 10 10" strokeDasharray="2 2" />
-                  <path d="M12 12L12 7" />
-                  <path d="M12 12l4 4" />
-                  <circle cx="12" cy="12" r="1" fill="black" />
-                </svg>
-              </div>
-            </div>
+            
+            {/* L'OROLOGIO È STATO RIMOSSO DA QUI */}
 
             <div className="space-y-2">
               <h2 className="text-4xl font-light italic tracking-tight">Cosa hai in mente?</h2>
@@ -91,7 +82,7 @@ export default function VibeApp() {
               ))}
             </section>
 
-            <div className="grid grid-cols-2 gap-8">
+            <div className="grid grid-cols-2 gap-8 border-t border-black/5 pt-12">
               <section className="mb-12">
                 <h3 className="text-[10px] uppercase opacity-30 mb-8 border-b pb-2 italic text-center tracking-[0.2em]">Cinema</h3>
                 {result.movies?.map((m: any, i: number) => (

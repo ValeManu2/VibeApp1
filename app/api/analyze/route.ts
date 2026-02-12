@@ -5,7 +5,9 @@ export async function POST(req: Request) {
     const { text: userText } = await req.json();
     const apiKey = process.env.GROQ_API_KEY;
 
-    if (!apiKey) return NextResponse.json({ error: "Manca GROQ_API_KEY" }, { status: 500 });
+    if (!apiKey) {
+      return NextResponse.json({ error: "Configura GROQ_API_KEY su Vercel" }, { status: 500 });
+    }
 
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
@@ -18,18 +20,18 @@ export async function POST(req: Request) {
         messages: [
           {
             role: "system",
-            content: "Sei un esperto curatore musicale e cinematografico. Rispondi esclusivamente in formato JSON."
+            content: "Sei un esperto curatore. Rispondi solo in JSON."
           },
           {
             role: "user",
-            content: `Analizza questo mood: "${userText}". 
-            Fornisci: 
-            1. 5 canzoni reali (artista e titolo). 
-            2. 2 film reali. 
-            3. 1 serie TV reale.
+            content: `Analizza: "${userText}". 
+            Fornisci ESATTAMENTE:
+            - 5 canzoni reali (t: titolo, a: artista).
+            - 2 film reali (t: titolo).
+            - 1 serie TV reale (t: titolo).
             
-            Rispondi SOLO con questo schema JSON:
-            {"summary":"...","songs":[{"t":"Titolo","a":"Artista"}],"movies":[{"t":"Titolo"}],"series":[{"t":"Titolo"}]}`
+            Rispondi SOLO JSON:
+            {"summary":"...","songs":[{"t":"...","a":"..."}],"movies":[{"t":"..."}],"series":[{"t":"..."}]}`
           }
         ],
         temperature: 0.8,
@@ -39,13 +41,14 @@ export async function POST(req: Request) {
 
     const data = await response.json();
     
-    if (data.error) throw new Error(data.error.message);
+    if (data.error) {
+      return NextResponse.json({ error: data.error.message }, { status: 500 });
+    }
 
-    const content = data.choices[0].message.content;
-    return NextResponse.json(JSON.parse(content));
+    const content = JSON.parse(data.choices[0].message.content);
+    return NextResponse.json(content);
 
   } catch (error: any) {
-    console.error(error);
-    return NextResponse.json({ error: "Errore con Groq: " + error.message }, { status: 500 });
+    return NextResponse.json({ error: "Errore di connessione a Groq" }, { status: 500 });
   }
 }

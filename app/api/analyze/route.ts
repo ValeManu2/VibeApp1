@@ -6,7 +6,7 @@ export async function POST(req: Request) {
     const userText = body.text || "";
     const apiKey = process.env.GEMINI_API_KEY;
 
-    if (!apiKey) return NextResponse.json({ error: "Configura GEMINI_API_KEY su Vercel" }, { status: 500 });
+    if (!apiKey) return NextResponse.json({ error: "Manca GEMINI_API_KEY su Vercel" }, { status: 500 });
 
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
@@ -16,13 +16,13 @@ export async function POST(req: Request) {
         body: JSON.stringify({
           contents: [{
             parts: [{
-              text: `Analizza questo mood: "${userText}". 
-              Dimentica i risultati precedenti. Fornisci esattamente:
-              1. 5 Canzoni reali (Apple Music) diverse tra loro.
-              2. 2 Film reali (Letterboxd).
+              text: `Analizza questa frase: "${userText}". 
+              Dimentica i risultati precedenti. Interpreta il senso profondo e fornisci:
+              1. 5 Canzoni reali e diverse (stile Apple Music).
+              2. 2 Film reali e diversi (stile Letterboxd).
               3. 1 Serie TV reale.
               
-              Rispondi SOLO in JSON con questa struttura:
+              Rispondi SOLO in JSON con questo schema preciso:
               {"summary":"...","songs":[{"t":"Titolo","a":"Artista"}],"movies":[{"t":"Titolo"}],"series":[{"t":"Titolo"}]}`
             }]
           }],
@@ -35,12 +35,12 @@ export async function POST(req: Request) {
     const rawText = result.candidates[0].content.parts[0].text;
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
     
-    if (!jsonMatch) throw new Error("IA Error");
+    if (!jsonMatch) throw new Error("Formato IA non valido");
     const data = JSON.parse(jsonMatch[0]);
 
     return NextResponse.json(data);
 
   } catch (error) {
-    return NextResponse.json({ error: "Errore di analisi. Riprova." }, { status: 500 });
+    return NextResponse.json({ error: "Errore durante l'analisi" }, { status: 500 });
   }
 }

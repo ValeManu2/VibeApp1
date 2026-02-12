@@ -8,9 +8,9 @@ export async function POST(req: Request) {
 
     if (!apiKey) return NextResponse.json({ error: "Chiave API mancante" }, { status: 500 });
 
-    // CAMBIO URL: Usiamo la versione v1 invece della v1beta
+    // Cambiamo il modello in 'gemini-1.5-pro' che è più stabile su tutte le API
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -18,18 +18,20 @@ export async function POST(req: Request) {
           contents: [{
             parts: [{
               text: `Analizza questo mood: "${userText}". 
-              Dimentica i risultati precedenti. Fornisci ESATTAMENTE:
-              - 5 Canzoni reali e diverse (Titolo e Artista).
-              - 2 Film reali e diversi.
-              - 1 Serie TV reale.
+              Suggerisci titoli REALI:
+              - 5 Canzoni diverse (Titolo - Artista).
+              - 2 Film diversi.
+              - 1 Serie TV.
               
               Rispondi SOLO in JSON con questo schema:
               {"summary":"...","songs":[{"t":"Titolo","a":"Artista"}],"movies":[{"t":"Titolo"}],"series":[{"t":"Titolo"}]}`
             }]
           }],
           generationConfig: { 
-            temperature: 1.0,
-            maxOutputTokens: 1000 
+            temperature: 0.9,
+            topK: 1,
+            topP: 1,
+            maxOutputTokens: 2048 
           }
         }),
       }
@@ -37,24 +39,20 @@ export async function POST(req: Request) {
 
     const result = await response.json();
 
-    // Se Google restituisce un errore specifico
+    // Se dà ancora errore, stampiamo l'errore esatto nel log di Vercel per leggerlo
     if (result.error) {
-      return NextResponse.json({ error: `IA Error: ${result.error.message}` }, { status: result.error.code || 500 });
-    }
-
-    if (!result.candidates || !result.candidates[0].content.parts[0].text) {
-      throw new Error("Risposta vuota dall'IA");
+      console.error("DETTAGLIO ERRORE GOOGLE:", JSON.stringify(result.error));
+      return NextResponse.json({ error: `IA Error: ${result.error.message}` }, { status: 500 });
     }
 
     const rawText = result.candidates[0].content.parts[0].text;
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
     
-    if (!jsonMatch) throw new Error("Formato JSON non trovato");
+    if (!jsonMatch) throw new Error("Format error");
     
     return NextResponse.json(JSON.parse(jsonMatch[0]));
 
   } catch (error: any) {
-    console.error("Errore Generale:", error);
-    return NextResponse.json({ error: "Errore di connessione con l'IA." }, { status: 500 });
+    return NextResponse.json({ error: "Errore di connessione. Riprova tra poco." }, { status: 500 });
   }
 }

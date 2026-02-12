@@ -1,55 +1,59 @@
 import { NextResponse } from 'next/server';
 
 export async function POST(req: Request) {
-  let userText = "";
   try {
     const body = await req.json();
-    userText = body.text || "";
-    const apiKey = process.env.HUGGINGFACE_API_KEY;
+    const userText = body.text || "";
+    const apiKey = process.env.GEMINI_API_KEY;
 
-    // Prompt potenziato: chiediamo all'IA di fare il lavoro di "scouting"
-    const prompt = `[INST] Mood: "${userText}". 
-    Extract the 5 most relevant REAL songs from Apple Music and 3 REAL movies from Letterboxd.
-    Do NOT repeat the user sentence. Use only actual titles.
-    Output ONLY JSON: {"tracks":[{"t":"Song Title","a":"Artist"}],"media":[{"t":"Movie Title","y":"Movie"}]} [/INST]`;
+    if (!apiKey) throw new Error("Manca la chiave Gemini su Vercel");
 
+    // Chiamata a Google Gemini (molto più veloce di Hugging Face)
     const response = await fetch(
-      "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2",
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
       {
-        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          inputs: prompt,
-          parameters: { max_new_tokens: 400, wait_for_model: true }
+          contents: [{
+            parts: [{
+              text: `Agisci come un esperto curatore. Analizza questo mood: "${userText}". 
+              Trova 5 canzoni reali (per Apple Music) e 3 film/serie reali (per Letterboxd).
+              IMPORTANTE: Non ripetere la frase dell'utente. Usa solo titoli veri esistenti.
+              Rispondi esclusivamente con questo formato JSON:
+              {"summary":"una breve analisi del mood","music":[{"t":"Titolo Canzone","a":"Artista"}],"cinema":[{"t":"Titolo Film","y":"Film o Serie TV"}]}`
+            }]
+          }]
         }),
       }
     );
 
     const result = await response.json();
+    const rawText = result.candidates[0].content.parts[0].text;
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
     
-    if (response.ok && !result.error) {
-      const text = Array.isArray(result) ? result[0].generated_text : result.generated_text;
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        // Restituiamo solo i titoli puliti
-        return NextResponse.json({
-          mood_summary: "Analisi Vibe",
-          music_tracks: parsed.tracks.map((t: any) => ({ title: t.t, artist: t.a })),
-          movies_tv_shows: parsed.media.map((m: any) => ({ title: m.t, type: m.y }))
-        });
-      }
-    }
-    throw new Error("Timeout");
+    if (!jsonMatch) throw new Error("L'IA ha risposto in modo strano");
+    const data = JSON.parse(jsonMatch[0]);
 
-  } catch (e) {
-    // FALLBACK INTELLIGENTE: Se l'IA fallisce, non usiamo la frase intera!
-    // Prendiamo solo le parole più importanti (es. "motivazione", "calcio")
-    const keywords = userText.split(' ').filter(word => word.length > 5).slice(0, 2).join(' ');
+    // Pulizia e creazione link (senza parole di disturbo come "ricerca" o "playlist")
     return NextResponse.json({
-      mood_summary: "Ricerca per concetti chiave",
-      music_tracks: [{ title: keywords || userText, artist: "Scelta suggerita" }],
-      movies_tv_shows: [{ title: keywords || userText, type: "Film correlato" }]
+      mood_summary: data.summary,
+      music_tracks: data.music.map((m: any) => ({
+        title: m.t,
+        artist: m.a,
+        apple: `https://music.apple.com/search?term=${encodeURIComponent(m.t + " " + m.a)}`,
+        amazon: `https://music.amazon.it/search/${encodeURIComponent(m.t + " " + m.a)}`
+      })),
+      movies_tv_shows: data.cinema.map((c: any) => ({
+        title: c.t,
+        type: c.y,
+        letterboxd: `https://letterboxd.com/search/${encodeURIComponent(c.t)}/`,
+        tomatoes: `https://www.rottentomatoes.com/search?search=${encodeURIComponent(c.t)}`
+      }))
     });
+
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Errore tecnico. Controlla GEMINI_API_KEY" }, { status: 500 });
   }
 }
